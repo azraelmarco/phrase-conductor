@@ -105,6 +105,32 @@ To test the Conductor under real-time action, the prototype adds a minimal Rez-s
 
 `sample-session.json` is a full exported session from the v6 run.
 
+## WAVE-FLOW concept art
+
+Renders from my earlier prototype of the game, made before this spike. They define the visual direction for the Unreal build: geometric shapes, emissive materials and bloom, each design with its own color and silhouette.
+
+### Enemies
+
+Small, readable at a glance in swarms of 20–40, and cheap to render: thin emissive frames on one shared material.
+
+| | | |
+|---|---|---|
+| ![Gold cube](concept-art/enemies/01-gold-cube.png) | ![Violet pyramid](concept-art/enemies/02-violet-pyramid.png) | ![Green arrow rings](concept-art/enemies/03-green-arrow-rings.png) |
+| Gold cube | Violet pyramid | Green arrow rings |
+| ![Pink cannon](concept-art/enemies/04-pink-cannon.png) | ![Magenta lattice](concept-art/enemies/05-magenta-lattice.png) | |
+| Pink cannon | Magenta lattice | |
+
+### Bosses
+
+Huge and massive, built to make the player feel small. In the full game, the AI Conductor would summon a boss at the song's climax.
+
+| | | |
+|---|---|---|
+| ![Cyan crystal](concept-art/bosses/01-cyan-crystal.png) | ![Magenta cross](concept-art/bosses/04-magenta-cross.png) | ![Gold spiral](concept-art/bosses/03-gold-spiral.png) |
+| Cyan crystal | Magenta cross | Gold spiral |
+| ![Green cage](concept-art/bosses/02-green-cage.png) | ![Teal orb](concept-art/bosses/05-teal-orb.png) | |
+| Green cage | Teal orb | |
+
 ## Demo video
 
 [Watch the demo](https://drive.google.com/file/d/1MQc3wic6ioPfHDWM93pS7sWinMpCUyyx/view?usp=sharing)
