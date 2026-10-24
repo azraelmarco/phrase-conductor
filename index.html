@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phrase Conductor</title>
+<style>
+  :root{--bg:#0b0d12;--panel:#141821;--line:#222838;--text:#e6e9ef;--muted:#8a93a6;--accent:#6ee7ff;--ok:#5be49b;--warn:#ffb84d;--bad:#ff5c7a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  header{padding:16px 20px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:18px;letter-spacing:.04em}
+  header p{margin:4px 0 0;color:var(--muted)}
+  main{display:grid;grid-template-columns:340px 1fr;gap:16px;padding:16px 20px}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .panel+.panel{margin-top:16px}
+  .panel h2{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  label{display:block;margin:8px 0 4px;color:var(--muted);font-size:12px}
+  input,select,button{font:inherit}
+  input[type=text],input[type=number]{width:100%;padding:7px 9px;background:#0e1118;color:var(--text);border:1px solid #2a3142;border-radius:6px}
+  input[type=file]{width:100%;color:var(--muted);font-size:12px}
+  .row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  button{padding:8px 12px;border-radius:6px;border:1px solid #2a3142;background:#1c2230;color:var(--text);cursor:pointer}
+  button.primary{background:var(--accent);color:#04121a;border-color:var(--accent);font-weight:600}
+  button:disabled{opacity:.45;cursor:default}
+  .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  #stage{width:100%;height:340px;display:block;border-radius:10px;cursor:pointer;touch-action:manipulation}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+  .stat{background:#0e1118;border-radius:8px;padding:8px}
+  .stat b{display:block;font-size:18px}
+  .stat span{color:var(--muted);font-size:11px}
+  #log{max-height:380px;overflow:auto;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .entry{border-top:1px solid var(--line);padding:8px 0}
+  .entry:first-child{border-top:0}
+  .tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:11px;margin-right:6px}
+  .ok{background:#173a2a;color:var(--ok)} .warn{background:#3d2e14;color:var(--warn)} .bad{background:#3d1520;color:var(--bad)}
+  .hint,#stemList,#status{color:var(--muted);font-size:12px;margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>PHRASE CONDUCTOR</h1>
+  <p>Feasibility spike: a local Llama model re-arranges music every phrase from live timing telemetry, applied sample-accurately on the bar.</p>
+</header>
+
+<main>
+  <section>
+    <div class="panel">
+      <h2>Model</h2>
+      <label for="url">Ollama URL</label>
+      <input id="url" type="text" value="http://localhost:11434">
+      <label for="model">Model</label>
+      <input id="model" type="text" value="llama3.2:3b" list="models">
+      <datalist id="models"></datalist>
+      <div class="btns">
+        <button id="checkBtn">Check Ollama</button>
+        <button id="warmBtn">Warm up model</button>
+      </div>
+      <div id="status">Not checked yet.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Music</h2>
+      <div class="row">
+        <div><label for="bpm">BPM</label><input id="bpm" type="number" value="128" min="60" max="200"></div>
+        <div><label for="loopBars">Loop bars</label><input id="loopBars" type="number" value="8" min="1" max="64"></div>
+        <div><label for="phraseBars">Phrase bars</label><input id="phraseBars" type="number" value="8" min="1" max="64"></div>
+      </div>
+      <label for="latency">Extra tap latency compensation (ms)</label>
+      <input id="latency" type="number" value="0" step="5">
+      <label for="files">Your stems (WAV, same BPM, exactly "loop bars" long)</label>
+      <input id="files" type="file" accept="audio/*" multiple>
+      <div class="btns"><button id="synthBtn">Use built-in test stems</button></div>
+      <div id="stemList">No stems loaded.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Run</h2>
+      <div class="btns">
+        <button id="startBtn" class="primary" disabled>Start</button>
+        <button id="stopBtn" disabled>Stop</button>
+        <button id="exportBtn" disabled>Export session log</button>
+      </div>
+      <p class="hint">Tap SPACE on every beat (or click the stage). The Conductor reads your timing each phrase and plans the phrase after next.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="panel">
+      <canvas id="stage"></canvas>
+      <div class="stats">
+        <div class="stat"><b id="sHit">–</b><span>hit rate (last phrase)</span></div>
+        <div class="stat"><b id="sOff">–</b><span>mean offset ms (− early)</span></div>
+        <div class="stat"><b id="sJit">–</b><span>timing jitter ms</span></div>
+        <div class="stat"><b id="sLat">–</b><span>model latency ms</span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Conductor log</h2>
+      <div id="log"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+// ---------- config ----------
+const HIT_WINDOW_MS = 70;      // tap counts as a hit within ±70 ms of a beat
+const SAFETY_S = 0.15;         // a plan must arrive this long before its phrase starts
+function cfg(){
+  return {
+    url: $('url').value.trim().replace(/\/$/, ''),
+    model: $('model').value.trim(),
+    bpm: Math.max(40, +$('bpm').value || 128),
+    loopBars: Math.max(1, Math.round(+$('loopBars').value || 8)),
+    phraseBars: Math.max(1, Math.round(+$('phraseBars').value || 8)),
+    extraLatencyMs: +$('latency').value || 0
+  };
+}
+const beatDur = c => 60 / c.bpm;
+const barDur  = c => beatDur(c) * 4;
+const phraseDur = c => barDur(c) * c.phraseBars;
+
+// ---------- state ----------
+let ctx = null, filter = null, master = null;
+let stems = [];               // {name, buffer, gain, source}
+let run = null;               // per-session state
+let session = [];             // exported log entries
+let lastTap = null;           // {time, offsetMs, hit}
+
+function ensureCtx(){
+  if (!ctx) {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass'; filter.frequency.value = 18000; filter.Q.value = 0.7;
+    master = ctx.createGain(); master.gain.value = 0.9;
+    filter.connect(master).connect(ctx.destination);
+  }
+  return ctx;
+}
+
+// ---------- stems ----------
+function setStems(list){
+  stems.forEach(s => s.gain && s.gain.disconnect());
+  stems = list.map(s => {
+    const gain = ctx.createGain(); gain.gain.value = 0; gain.connect(filter);
+    return { name: s.name, buffer: s.buffer, gain, source: null };
+  });
+  const c = cfg(), L = c.loopBars * barDur(c);
+  const lines = stems.map(s => {
+    const diff = Math.abs(s.buffer.duration - L) * 1000;
+    return `${s.name} (${s.buffer.duration.toFixed(3)} s${diff > 5 ? `, ⚠ expected ${L.toFixed(3)} s` : ''})`;
+  });
+  $('stemList').textContent = stems.length ? `${stems.length} stems: ${lines.join(' · ')}` : 'No stems loaded.';
+  $('startBtn').disabled = !stems.length;
+}
+
+$('files').addEventListener('change', async e => {
+  ensureCtx();
+  const files = [...e.target.files];
+  const decoded = [];
+  for (const f of files) {
+    try {
+      const buf = await ctx.decodeAudioData(await f.arrayBuffer());
+      decoded.push({ name: f.name.replace(/\.[^.]+$/, ''), buffer: buf });
+    } catch (err) { addNote('bad', `Could not decode ${f.name}: ${err.message}`); }
+  }
+  setStems(decoded);
+});
+
+// Built-in test stems, rendered offline so they loop exactly on the bar grid.
+function noiseBuffer(oc){
+  const b = oc.createBuffer(1, Math.floor(oc.sampleRate * 0.2), oc.sampleRate);
+  const d = b.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return b;
+}
+const PROG_ROOTS  = [55, 43.65, 65.41, 49];                    // A1 F1 C2 G1
+const PROG_CHORDS = [[220,261.63,329.63],[174.61,220,261.63],[261.63,329.63,392],[196,246.94,293.66]];
+const SYNTH = {
+  kick(oc, c){
+    const bd = beatDur(c);
+    for (let i = 0; i < c.loopBars * 4; i++) {
+      const t = i * bd, o = oc.createOscillator(), g = oc.createGain();
+      o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+      g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.33);
+      o.connect(g).connect(oc.destination); o.start(t); o.stop(t + 0.35);
+    }
+  },
+  hats(oc, c){
+    const bd = beatDur(c), nb = noiseBuffer(oc);
+    for (let i = 0; i < c.loopBars * 4; i++) {
+      const t = (i + 0.5) * bd, s = oc.createBufferSource(), hp = oc.createBiquadFilter(), g = oc.createGain();
+      s.buffer = nb; hp.type = 'highpass'; hp.frequency.value = 7000;
+      g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+      s.connect(hp).connect(g).connect(oc.destination); s.start(t); s.stop(t + 0.06);
+    }
+  },
+  bass(oc, c){
+    const bd = beatDur(c), br = barDur(c);
+    for (let bar = 0; bar < c.loopBars; bar++) for (let j = 0; j < 8; j++) {
+      const t = bar * br + j * bd / 2, o = oc.createOscillator(), lp = oc.createBiquadFilter(), g = oc.createGain();
+      o.type = 'sawtooth'; o.frequency.value = PROG_ROOTS[bar % 4] * (j % 2 ? 2 : 1);
+      lp.type = 'lowpass'; lp.frequency.value = 500;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.35, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.001, t + bd / 2 * 0.9);
+      o.connect(lp).connect(g).connect(oc.destination); o.start(t); o.stop(t + bd / 2);
+    }
+  },
+  pad(oc, c){
+    const br = barDur(c);
+    for (let bar = 0; bar < c.loopBars; bar++) for (const f of PROG_CHORDS[bar % 4]) for (const det of [-7, 7]) {
+      const t = bar * br, o = oc.createOscillator(), lp = oc.createBiquadFilter(), g = oc.createGain();
+      o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = det;
+      lp.type = 'lowpass'; lp.frequency.value = 1400;
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.04, t + 0.25);
+      g.gain.setValueAtTime(0.04, t + br - 0.15); g.gain.linearRampToValueAtTime(0, t + br);
+      o.connect(lp).connect(g).connect(oc.destination); o.start(t); o.stop(t + br);
+    }
+  },
+  arp(oc, c){
+    const bd = beatDur(c), br = barDur(c);
+    for (let bar = 0; bar < c.loopBars; bar++) for (let k = 0; k < 16; k++) {
+      const t = bar * br + k * bd / 4, o = oc.createOscillator(), lp = oc.createBiquadFilter(), g = oc.createGain();
+      const chord = PROG_CHORDS[bar % 4];
+      o.type = 'square'; o.frequency.value = chord[k % 3] * 2;
+      lp.type = 'lowpass'; lp.frequency.value = 3000;
+      g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+      o.connect(lp).connect(g).connect(oc.destination); o.start(t); o.stop(t + 0.09);
+    }
+  }
+};
+
+$('synthBtn').addEventListener('click', async () => {
+  ensureCtx();
+  const c = cfg(), sr = 44100, len = Math.ceil(c.loopBars * barDur(c) * sr);
+  const out = [];
+  for (const [name, draw] of Object.entries(SYNTH)) {
+    const oc = new OfflineAudioContext(2, len, sr);
+    draw(oc, c);
+    out.push({ name, buffer: await oc.startRendering() });
+  }
+  setStems(out);
+});
+
+// ---------- plans ----------
+// Opening plan: the lowest-tension state of the song. Only the beat and a soft pad,
+// dark filter, no enemies. Everything after this is earned by the player.
+function defaultPlan(){
+  return {
+    stem_gains: stems.map((s, i) => isRhythmStem(s.name, i) ? 0.6 : /pad|ambient|atmo|drone/i.test(s.name) ? 0.3 : 0),
+    filter_cutoff_hz: 400, tension: 0, enemy_density: 0, hue: 220,
+    section: 'intro', reason: 'Opening at minimum tension.'
+  };
+}
+const clamp = (v, lo, hi, d) => Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : d;
+
+// Never trust the model: coerce every field into a safe, playable range.
+function validatePlan(raw, n){
+  const p = raw && typeof raw === 'object' ? raw : {};
+  const g = Array.isArray(p.stem_gains) ? p.stem_gains.slice(0, n) : [];
+  while (g.length < n) g.push(0.5);
+  return {
+    assessment: String(p.assessment || '').slice(0, 160),
+    stem_gains: g.map(v => clamp(v, 0, 1, 0.5)),
+    filter_cutoff_hz: clamp(p.filter_cutoff_hz, 200, 18000, 6000),
+    tension: clamp(p.tension, 0, 1, 0.5),
+    enemy_density: Math.round(clamp(p.enemy_density, 0, 40, 8)),
+    hue: clamp(p.hue, 0, 360, 200),
+    section: ['intro','build','drop','breakdown'].includes(p.section) ? p.section : 'build',
+    reason: String(p.reason || '').slice(0, 320)
+  };
+}
+
+// Schedule a plan to take effect exactly at `when` on the audio clock.
+function applyPlan(plan, when){
+  stems.forEach((s, i) => {
+    s.gain.gain.cancelScheduledValues(when);
+    s.gain.gain.setTargetAtTime(plan.stem_gains[i], when, 0.03);
+  });
+  filter.frequency.cancelScheduledValues(when);
+  filter.frequency.setTargetAtTime(plan.filter_cutoff_hz, when, 0.08);
+  run.visuals.push({ when, plan });
+}
+
+function planSchema(n){
+  // Property order matters for small models: assess first, then commit to numbers.
+  return {
+    type: 'object',
+    properties: {
+      assessment: { type: 'string' },
+      section: { type: 'string', enum: ['intro','build','drop','breakdown'] },
+      tension: { type: 'number' },
+      enemy_density: { type: 'integer' },
+      filter_cutoff_hz: { type: 'number' },
+      stem_gains: { type: 'array', items: { type: 'number' }, minItems: n, maxItems: n },
+      hue: { type: 'number' },
+      reason: { type: 'string' }
+    },
+    required: ['assessment','section','tension','enemy_density','filter_cutoff_hz','stem_gains','hue','reason']
+  };
+}
+
+// ---------- player model (deterministic) ----------
+// Code decides WHAT the player needs; the model decides HOW the music delivers it.
+function classifyPlayer(tel){
+  if (tel.hits === 0 && tel.extra_taps <= 1) return 'idle';
+  if (tel.hit_rate < 0.5) return 'struggling';
+  if (tel.hit_rate >= 0.85 && tel.jitter_ms <= 45) return 'strong';
+  return 'steady';
+}
+const STATE_RULES = {
+  idle:       { sections: ['breakdown'],                 tension: [0, 0.3],   density: [0, 4],  cutoff: [300, 1500] },
+  struggling: { sections: ['breakdown','intro','build'], tension: [0.1, 0.5], density: [2, 12],  cutoff: [800, 6000] },
+  steady:     { sections: ['build','intro'],             tension: [0.3, 0.7], density: [8, 24],  cutoff: [2000, 10000] },
+  strong:     { sections: ['build','drop'],              tension: [0.6, 1],   density: [20, 40], cutoff: [6000, 18000] }
+};
+const isRhythmStem = (name, i) => /kick|drum|beat|perc|bd/i.test(name) || (i === 0 && !stems.some(s => /kick|drum|beat|perc|bd/i.test(s.name)));
+
+// Guardrails: keep the model's creative choices, but never let it break game feel.
+function applyGuardrails(plan, state, streak){
+  const r = STATE_RULES[state], fixes = [];
+  const fit = (key, [lo, hi]) => {
+    const v = plan[key], nv = Math.min(hi, Math.max(lo, v));
+    if (nv !== v) { fixes.push(`${key} ${+v.toFixed(2)}→${+nv.toFixed(2)}`); plan[key] = nv; }
+  };
+  let sections = r.sections;
+  if (state === 'strong' && streak < 2) sections = ['build'];           // a drop must be earned
+  if (!sections.includes(plan.section)) { fixes.push(`section ${plan.section}→${sections[0]}`); plan.section = sections[0]; }
+  fit('tension', r.tension); fit('enemy_density', r.density); fit('filter_cutoff_hz', r.cutoff);
+  plan.stem_gains = plan.stem_gains.map((g, i) => {
+    let ng = g;
+    const rhythm = isRhythmStem(stems[i].name, i);
+    if (state === 'struggling' && rhythm) ng = Math.max(ng, 0.85);       // the beat stays audible as a reference
+    if (state === 'struggling' && !rhythm) ng = Math.min(ng, 0.5);
+    if (state === 'idle' && !rhythm) ng = Math.min(ng, 0.4);
+    if (plan.section === 'drop') ng = Math.max(ng, 0.8);
+    if (ng !== g) fixes.push(`${stems[i].name} ${g.toFixed(2)}→${ng.toFixed(2)}`);
+    return ng;
+  });
+  if (plan.section === 'drop' && plan.filter_cutoff_hz < 12000) { fixes.push(`cutoff→12000 (drop)`); plan.filter_cutoff_hz = 12000; }
+  return fixes;
+}
+
+const SYSTEM_PROMPT = `You are the AI Conductor of an electronic-music rhythm game. You arrange the NEXT phrase of music.
+The game has already measured the player and gives you player_state. Your job is to turn that state into a musical arrangement.
+
+player_state meanings and what the next phrase must do:
+- idle: the player stopped playing. Calm breakdown: section "breakdown", tension 0-0.3, density 0-4, dark filter (300-1500 Hz), only a few quiet layers.
+- struggling: the player is missing beats. Help them: tension 0.1-0.5, density 2-12, kick/drums LOUD (>=0.85) as a timing reference, other layers quiet (<=0.5). Never "drop".
+- steady: decent playing. Keep momentum: section "build", tension 0.3-0.7, density 8-24, medium filter.
+- strong: excellent playing. Reward it: tension 0.6-1, density 20-40, bright filter, more layers. Use "drop" ONLY when strong_streak >= 2 (then all layers loud, filter >= 12000 Hz).
+
+Rules:
+- Base every number on player_state and the telemetry, NOT on the previous plan. If the state changed, the music must change clearly.
+- assessment: one short sentence describing the player right now, citing the numbers.
+- reason: one short sentence describing what you changed musically and why. Describe the direction correctly (lower cutoff = darker, higher = brighter).
+- stem_gains: one value 0-1 per stem, same order as the stems list. Make musical choices about WHICH layers carry the phrase.
+- enemy_density is how many enemies should be on screen (0-40). The telemetry includes enemies_carried_over: enemies the player failed to clear last phrase, which stay alive. If many carried over, the player is under pressure: keep enemy_density modest. If few carried over, you can push higher.
+- hue: 0-360 color that matches the mood (cool/dark for calm, warm/bright for intensity).
+Reply only with JSON matching the schema.`;
+
+// ---------- telemetry ----------
+function telemetry(start, end){
+  const c = cfg(), bd = beatDur(c);
+  const lat = (ctx.outputLatency || ctx.baseLatency || 0) + c.extraLatencyMs / 1000;
+  const beats = Math.round((end - start) / bd);
+  const hitBeats = new Set(), offsets = [];
+  let extra = 0;
+  for (const t of run.taps) {
+    const tt = t - lat;
+    if (tt < start - bd / 2 || tt >= end - bd / 2) continue;
+    const idx = Math.round((tt - start) / bd);
+    const off = (tt - (start + idx * bd)) * 1000;
+    if (Math.abs(off) <= HIT_WINDOW_MS && idx >= 0 && idx < beats && !hitBeats.has(idx)) { hitBeats.add(idx); offsets.push(off); }
+    else extra++;
+  }
+  const mean = offsets.length ? offsets.reduce((a, b) => a + b, 0) / offsets.length : 0;
+  const jitter = offsets.length > 1 ? Math.sqrt(offsets.reduce((a, b) => a + (b - mean) ** 2, 0) / (offsets.length - 1)) : 0;
+  return {
+    beats, hits: hitBeats.size, hit_rate: +(hitBeats.size / beats).toFixed(2),
+    mean_offset_ms: Math.round(mean), jitter_ms: Math.round(jitter), extra_taps: extra
+  };
+}
+
+// ---------- conductor loop ----------
+const phraseStart = n => run.t0 + n * phraseDur(cfg());
+
+async function requestPlan(target, tel, prevTel, state, streak){
+  const c = cfg();
+  const deadline = phraseStart(target) - SAFETY_S;
+  // Phrase numbers in the log and export are 1-based, matching the on-screen counter.
+  const entry = { plan_for_phrase: target + 1, based_on_phrase: target - 1, telemetry: tel, player_state: state, strong_streak: streak, status: 'pending', latency_ms: null, model_plan: null, guardrails: [], plan: null };
+  session.push(entry);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(100, (deadline - ctx.currentTime) * 1000));
+  const t = performance.now();
+  try {
+    const res = await fetch(`${c.url}/api/chat`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
+      body: JSON.stringify({
+        model: c.model, stream: false, keep_alive: '15m',
+        format: planSchema(stems.length), options: { temperature: 0.4 },
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: JSON.stringify({
+              player_state: state, strong_streak: streak,
+              telemetry_last_phrase: tel,
+              telemetry_phrase_before: prevTel,
+              previous_section: run.current ? run.current.section : 'intro',
+              stems: stems.map(s => s.name), bpm: c.bpm }) }
+        ]
+      })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const plan = validatePlan(JSON.parse(data.message.content), stems.length);
+    entry.latency_ms = Math.round(performance.now() - t);
+    entry.model_plan = JSON.parse(JSON.stringify(plan));      // what the model proposed
+    entry.guardrails = applyGuardrails(plan, state, streak);   // what code corrected
+    entry.plan = plan;                                          // what actually played
+    if (run && ctx.currentTime < deadline) {
+      run.pending[target] = plan;
+      applyPlan(plan, phraseStart(target));   // scheduled on the audio clock, not "now"
+      entry.status = 'on_time';
+    } else entry.status = 'late';
+  } catch (err) {
+    entry.latency_ms = Math.round(performance.now() - t);
+    entry.status = err.name === 'AbortError' ? 'late' : 'error';
+    entry.error = String(err.message || err);
+  } finally {
+    clearTimeout(timer);
+    if (entry.latency_ms != null) $('sLat').textContent = entry.latency_ms;
+    renderLog(entry);
+  }
+}
+
+function onPhraseBoundary(n){
+  // Phrase n just started. Resolve its plan, measure phrase n-1, request plan for n+1.
+  if (run.pending[n]) { run.current = run.pending[n]; delete run.pending[n]; }
+  else if (n >= 2) addNote('warn', `Phrase ${n + 1}: no plan in time → holding previous plan (fallback).`);
+  const tel = telemetry(phraseStart(n - 1), phraseStart(n));
+  const combat = resolvePhrase(tel.hit_rate, ctx.currentTime);
+  tel.enemies_destroyed = combat.destroyed;
+  tel.enemies_carried_over = combat.carried_over;
+  $('sHit').textContent = Math.round(tel.hit_rate * 100) + '%';
+  $('sOff').textContent = tel.mean_offset_ms;
+  $('sJit').textContent = tel.jitter_ms;
+  const state = classifyPlayer(tel);
+  run.strongStreak = state === 'strong' ? (run.strongStreak || 0) + 1 : 0;
+  requestPlan(n + 1, tel, run.prevTel, state, run.strongStreak);
+  run.prevTel = tel;
+}
+
+function tick(){
+  if (!run) return;
+  const P = phraseDur(cfg());
+  while (ctx.currentTime >= run.t0 + (run.phrase + 1) * P) { run.phrase++; onPhraseBoundary(run.phrase); }
+}
+
+// ---------- start / stop ----------
+$('startBtn').addEventListener('click', async () => {
+  ensureCtx(); await ctx.resume();
+  const c = cfg(), L = c.loopBars * barDur(c);
+  session = []; $('log').innerHTML = '';
+  run = { t0: ctx.currentTime + 0.3, phrase: 0, taps: [], pending: {}, visuals: [], current: null, prevTel: null, timer: null };
+  stems.forEach(s => {
+    const src = ctx.createBufferSource();
+    src.buffer = s.buffer; src.loop = true; src.loopStart = 0; src.loopEnd = Math.min(L, s.buffer.duration);
+    src.connect(s.gain); src.start(run.t0); s.source = src;
+  });
+  run.current = defaultPlan();
+  filter.frequency.cancelScheduledValues(0);
+  filter.frequency.setValueAtTime(run.current.filter_cutoff_hz, ctx.currentTime);
+  vis = sectionPalette(run.current); visPlan = null; visTween = null;
+  enemies = []; particles = []; banner = null; lastSpawnBeat = -1;
+  applyPlan(run.current, run.t0);
+  run.timer = setInterval(tick, 25);
+  $('startBtn').disabled = true; $('stopBtn').disabled = false; $('exportBtn').disabled = false;
+  addNote('ok', `Started: ${stems.length} stems, ${c.bpm} BPM, ${c.phraseBars}-bar phrases, model ${c.model}.`);
+});
+
+function stop(){
+  if (!run) return;
+  clearInterval(run.timer);
+  stems.forEach(s => { try { s.source.stop(); } catch (_) {} s.source = null; s.gain.gain.cancelScheduledValues(0); s.gain.gain.value = 0; });
+  run = null;
+  $('startBtn').disabled = !stems.length; $('stopBtn').disabled = true;
+}
+$('stopBtn').addEventListener('click', stop);
+
+// ---------- input ----------
+function tap(){
+  if (!run) return;
+  const t = ctx.currentTime;
+  run.taps.push(t);
+  const c = cfg(), bd = beatDur(c);
+  const lat = (ctx.outputLatency || ctx.baseLatency || 0) + c.extraLatencyMs / 1000;
+  const tt = t - lat, idx = Math.round((tt - run.t0) / bd);
+  const off = (tt - (run.t0 + idx * bd)) * 1000;
+  lastTap = { time: performance.now(), offsetMs: Math.round(off), hit: Math.abs(off) <= HIT_WINDOW_MS };
+}
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !e.repeat && e.target.tagName !== 'INPUT') { e.preventDefault(); tap(); }
+});
+$('stage').addEventListener('pointerdown', tap);
+
+// ---------- ollama helpers ----------
+$('checkBtn').addEventListener('click', async () => {
+  try {
+    const res = await fetch(`${cfg().url}/api/tags`);
+    const data = await res.json();
+    const names = (data.models || []).map(m => m.name);
+    $('models').innerHTML = names.map(n => `<option value="${n}">`).join('');
+    $('status').textContent = names.length ? `Connected. Models: ${names.join(', ')}` : 'Connected, but no models installed.';
+  } catch (err) {
+    $('status').textContent = `Cannot reach Ollama (${err.message}). Is it running? See README for the CORS setting.`;
+  }
+});
+$('warmBtn').addEventListener('click', async () => {
+  const c = cfg(), t = performance.now();
+  $('status').textContent = 'Loading model into memory…';
+  try {
+    const res = await fetch(`${c.url}/api/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: c.model, stream: false, keep_alive: '15m', messages: [{ role: 'user', content: 'Reply with OK.' }] }) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    await res.json();
+    $('status').textContent = `Model ready (${Math.round(performance.now() - t)} ms).`;
+  } catch (err) { $('status').textContent = `Warm-up failed: ${err.message}`; }
+});
+
+// ---------- log ----------
+function addNote(kind, text){
+  const div = document.createElement('div');
+  div.className = 'entry';
+  div.innerHTML = `<span class="tag ${kind}">${kind === 'ok' ? 'INFO' : kind === 'warn' ? 'FALLBACK' : 'ERROR'}</span>${escapeHtml(text)}`;
+  $('log').prepend(div);
+}
+function renderLog(last){
+  if (!last || last.status === 'pending') return;
+  const kind = last.status === 'on_time' ? 'ok' : last.status === 'late' ? 'warn' : 'bad';
+  const label = { on_time: 'ON TIME', late: 'LATE', error: 'ERROR' }[last.status];
+  const p = last.plan;
+  const t = last.telemetry;
+  const div = document.createElement('div');
+  div.className = 'entry';
+  div.innerHTML =
+    `<span class="tag ${kind}">${label}</span>plan for phrase ${last.plan_for_phrase} · ${last.latency_ms} ms<br>` +
+    `telemetry: hit ${Math.round(t.hit_rate * 100)}% · offset ${t.mean_offset_ms} ms · jitter ${t.jitter_ms} ms · extra taps ${t.extra_taps}${t.enemies_destroyed != null ? ` · destroyed ${t.enemies_destroyed} · carried ${t.enemies_carried_over}` : ''} · state <b>${last.player_state}</b>${last.strong_streak ? ` (streak ${last.strong_streak})` : ''}<br>` +
+    (p && p.assessment ? `model sees: <em>${escapeHtml(p.assessment)}</em><br>` : '') +
+    (last.guardrails && last.guardrails.length ? `<span class="tag warn">GUARDRAIL</span>${escapeHtml(last.guardrails.join(' · '))}<br>` : '') +
+    (p ? `→ ${p.section} · tension ${p.tension.toFixed(2)} · density ${p.enemy_density} · cutoff ${Math.round(p.filter_cutoff_hz)} Hz · gains [${p.stem_gains.map(v => v.toFixed(2)).join(', ')}]<br>` +
+         `<em>${escapeHtml(p.reason)}</em>` : escapeHtml(last.error || 'Arrived after the deadline; ignored.'));
+  $('log').prepend(div);
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[ch])); }
+
+$('exportBtn').addEventListener('click', () => {
+  const c = cfg();
+  const blob = new Blob([JSON.stringify({ config: c, stems: stems.map(s => s.name), entries: session }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `phrase-conductor-session-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+// ---------- enemies ----------
+// Enemies persist across phrases. At each phrase end, the player's accuracy decides what share explodes;
+// the rest carry over. The Conductor's enemy_density sets how many should be on screen; new ones arrive on the beat.
+const ENEMY_TYPES = {
+  drone:  { hue: 185, size: 7,  shape: 'circle'   },   // cyan, common
+  spiker: { hue: 320, size: 8,  shape: 'triangle' },   // magenta, more with tension
+  heavy:  { hue: 28,  size: 11, shape: 'square'   },   // orange, high tension
+  elite:  { hue: 52,  size: 10, shape: 'diamond'  }    // gold, only near the top
+};
+const MAX_ENEMIES = 64;
+let enemies = [], particles = [], banner = null, lastSpawnBeat = -1, nextEnemyId = 1;
+
+function pickType(t){
+  const w = { drone: 1, spiker: 0.3 + t, heavy: t * 0.8, elite: Math.max(0, t - 0.6) * 2 };
+  let r = Math.random() * Object.values(w).reduce((a, b) => a + b, 0);
+  for (const [k, v] of Object.entries(w)) if ((r -= v) <= 0) return k;
+  return 'drone';
+}
+// Enemies arrive as mirrored pairs: same type and motion, opposite sides of the orbit.
+function spawnPair(now, tension){
+  const base = {
+    type: pickType(tension), born: now,
+    angle: Math.random() * Math.PI * 2,
+    speed: (Math.random() < 0.5 ? -1 : 1) * (0.15 + Math.random() * 0.5) * (0.6 + tension),
+    ring: 1.5 + Math.random() * 1.4,
+    wobbleAmp: 0.08 + Math.random() * 0.3,
+    wobbleHz: 0.2 + Math.random() * 0.8,
+    phase: Math.random() * Math.PI * 2
+  };
+  enemies.push({ ...base, id: nextEnemyId++ });
+  enemies.push({ ...base, id: nextEnemyId++, angle: base.angle + Math.PI, phase: base.phase + Math.PI });
+}
+const aliveEnemies = () => enemies.filter(e => e.dieAt == null);
+function stageGeom(){ const w = cv.clientWidth, h = cv.clientHeight; return { w, h, cx: w / 2, cy: h / 2, base: Math.min(w, h) * 0.18 }; }
+function enemyPos(e, now, g){
+  const age = now - e.born, a = e.angle + e.speed * age;
+  const r = g.base * (e.ring + e.wobbleAmp * Math.sin(age * e.wobbleHz * Math.PI * 2 + e.phase));
+  return { x: g.cx + Math.cos(a) * r * 1.3, y: g.cy + Math.sin(a) * r * 0.82 };   // wide elliptical orbit
+}
+function explode(e, now, g){
+  const p = enemyPos(e, now, g), T = ENEMY_TYPES[e.type];
+  if (particles.length > 2500) return;
+  const n = Math.round((18 + Math.random() * 16 + (e.type === 'heavy' || e.type === 'elite' ? 14 : 0)) * (e.burst || 1));
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 60 + Math.random() * 240;
+    particles.push({ x: p.x, y: p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, born: now,
+      life: 0.5 + Math.random() * 0.7, hue: T.hue + Math.random() * 30 - 15, size: 1.5 + Math.random() * 2.5 });
+  }
+  particles.push({ ring: true, x: p.x, y: p.y, born: now, life: 0.45, hue: T.hue });
+}
+// Phrase end: accuracy decides the share of enemies destroyed (oldest first). Survivors carry over.
+function resolvePhrase(hitRate, now){
+  const alive = aliveEnemies(), kills = Math.round(alive.length * hitRate), carried = alive.length - kills;
+  const step = kills ? Math.min(0.03, 0.45 / kills) : 0;          // chain reaction across ~one beat
+  alive.sort((a, b) => a.born - b.born).slice(0, kills).forEach((e, i) => {
+    e.dieAt = now + i * step;
+    e.burst = Math.max(0.4, Math.min(1, 16 / kills));              // fewer particles each in huge waves
+  });
+  banner = { at: now, text: kills || carried
+    ? `ACCURACY ${Math.round(hitRate * 100)}%  ·  ${kills} DESTROYED  ·  ${carried} CARRIED OVER`
+    : `ACCURACY ${Math.round(hitRate * 100)}%` };
+  return { destroyed: kills, carried_over: carried };
+}
+function drawShape(shape, x, y, s, rot){
+  g2.beginPath();
+  if (shape === 'circle') g2.arc(x, y, s, 0, Math.PI * 2);
+  else {
+    const pts = shape === 'triangle' ? 3 : 4, off = shape === 'square' ? Math.PI / 4 : 0;
+    for (let i = 0; i < pts; i++) {
+      const a = rot + off + i / pts * Math.PI * 2, r = shape === 'diamond' && i % 2 ? s * 0.65 : s * 1.2;
+      i ? g2.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r) : g2.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+    }
+    g2.closePath();
+  }
+  g2.fill();
+}
+function drawEnemies(now, g, beatPhase){
+  enemies = enemies.filter(e => {
+    if (e.dieAt != null && now >= e.dieAt) { explode(e, now, g); return false; }
+    return true;
+  });
+  const blur = enemies.length > 30 ? 6 : 12;                       // keep framerate up in big swarms
+  for (const e of enemies) {
+    const T = ENEMY_TYPES[e.type], p = enemyPos(e, now, g), age = now - e.born, pop = Math.min(1, age / 0.3);
+    const s = T.size * (0.4 + 0.6 * pop) * (1 + 0.25 * Math.pow(1 - beatPhase, 3));
+    g2.shadowColor = `hsl(${T.hue} 95% 60%)`; g2.shadowBlur = e.dieAt != null ? 24 : blur;
+    g2.fillStyle = `hsl(${T.hue} 95% ${55 + 25 * (1 - pop)}% / ${pop})`;
+    drawShape(T.shape, p.x, p.y, s, age * 1.5 * Math.sign(e.speed));
+  }
+  g2.shadowBlur = 0;
+}
+function drawParticles(now){
+  particles = particles.filter(p => now - p.born < p.life);
+  g2.save(); g2.globalCompositeOperation = 'lighter';
+  for (const p of particles) {
+    const t = now - p.born, k = 1 - t / p.life;
+    if (p.ring) {
+      g2.beginPath(); g2.arc(p.x, p.y, 8 + t * 170, 0, Math.PI * 2);
+      g2.strokeStyle = `hsl(${p.hue} 100% 70% / ${k})`; g2.lineWidth = 2; g2.stroke(); continue;
+    }
+    const f = (1 - Math.exp(-3 * t)) / 3;   // drag: fast burst that slows down
+    g2.beginPath(); g2.arc(p.x + p.vx * f, p.y + p.vy * f, p.size * k + 0.3, 0, Math.PI * 2);
+    g2.fillStyle = `hsl(${p.hue} 100% ${60 + 30 * k}% / ${k})`; g2.fill();
+  }
+  g2.restore();
+}
+
+// ---------- visuals ----------
+const cv = $('stage'), g2 = cv.getContext('2d');
+// Background palette: code maps section + tension to a color story, the model's hue fine-tunes it (±10°).
+// Every change is a fixed 1.6 s eased tween that starts on the downbeat where the new plan begins.
+const COLOR_FADE_S = 1.6;
+let vis = { hue: 220, hue2: 190, tension: 0 }, visPlan = null, visTween = null;
+function sectionPalette(plan){
+  const t = plan.tension;
+  const base = plan.section === 'breakdown' ? 225 - t * 20      // deep blue → teal
+             : plan.section === 'intro'     ? 220               // cold blue
+             : plan.section === 'drop'      ? 10 + t * 25       // red → orange
+             :                                250 + t * 60;     // build: indigo → magenta
+  const md = ((plan.hue - base + 540) % 360) - 180;
+  const hue = (base + Math.max(-20, Math.min(20, md)) * 0.5 + 360) % 360;
+  const spread = plan.section === 'drop' ? 40 : plan.section === 'breakdown' ? -30 : 35;
+  return { hue, hue2: (hue + spread + 360) % 360, tension: t };
+}
+const easeInOut = x => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const lerpHue = (a, b, k) => (a + (((b - a + 540) % 360) - 180) * k + 360) % 360;   // shortest arc
+function activeVisual(now){
+  if (!run) return null;
+  let v = null;
+  for (const item of run.visuals) if (item.when <= now) v = item.plan;
+  return v;
+}
+function draw(){
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== w * dpr || cv.height !== h * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+  g2.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const plan = ctx && run ? activeVisual(ctx.currentTime) : null;
+  if (plan && plan !== visPlan) {
+    visPlan = plan;
+    visTween = { from: { ...vis }, to: sectionPalette(plan), start: performance.now() / 1000 };
+  }
+  if (visTween) {
+    const f = visTween.from, t = visTween.to;
+    const k = easeInOut(Math.min(1, (performance.now() / 1000 - visTween.start) / COLOR_FADE_S));
+    vis.hue = lerpHue(f.hue, t.hue, k);
+    vis.hue2 = lerpHue(f.hue2, t.hue2, k);
+    vis.tension = f.tension + (t.tension - f.tension) * k;
+    if (k >= 1) visTween = null;
+  }
+  const hue = vis.hue, tension = vis.tension;
+  const L = 7 + tension * 12;
+  const lg = g2.createLinearGradient(0, 0, w, h);
+  lg.addColorStop(0, `hsl(${vis.hue} 55% ${L}%)`);
+  lg.addColorStop(1, `hsl(${vis.hue2} 60% ${L * 0.55}%)`);
+  g2.fillStyle = lg; g2.fillRect(0, 0, w, h);
+  const rg = g2.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.6);
+  rg.addColorStop(0, `hsl(${vis.hue} 80% ${L + 8}% / ${0.35 + tension * 0.4})`);
+  rg.addColorStop(1, `hsl(${vis.hue2} 60% 5% / 0)`);
+  g2.fillStyle = rg; g2.fillRect(0, 0, w, h);
+
+  if (run && ctx) {
+    const c = cfg(), bd = beatDur(c), el = ctx.currentTime - run.t0;
+    if (el >= 0) {
+      const beatPhase = (el / bd) % 1, beatNum = Math.floor(el / bd);
+      const bar = Math.floor(beatNum / 4) % c.phraseBars + 1, beat = beatNum % 4 + 1;
+      const cx = w / 2, cy = h / 2, base = Math.min(w, h) * 0.18;
+      const pulse = base * (1 + 0.35 * Math.pow(1 - beatPhase, 3) * (0.5 + tension));
+      g2.beginPath(); g2.arc(cx, cy, pulse, 0, Math.PI * 2);
+      g2.fillStyle = `hsl(${hue} 90% ${45 + tension * 20}%)`; g2.fill();
+
+      // Spawn on the beat toward the Conductor's target; faster when tension is high.
+      if (plan && beatNum > lastSpawnBeat) {
+        lastSpawnBeat = beatNum;
+        const gap = plan.enemy_density - aliveEnemies().length;
+        let pairs = gap > 0 ? (plan.tension > 0.7 && gap > 4 ? 2 : 1) : 0;
+        while (pairs-- > 0 && enemies.length <= MAX_ENEMIES - 2) spawnPair(ctx.currentTime, plan.tension);
+      }
+      const geom = { w, h, cx, cy, base };
+      drawEnemies(ctx.currentTime, geom, beatPhase);
+      drawParticles(ctx.currentTime);
+
+      g2.fillStyle = 'rgba(255,255,255,.85)';
+      g2.font = '600 13px ui-monospace, Menlo, Consolas, monospace';
+      g2.fillText(`PHRASE ${run.phrase + 1}   BAR ${bar}/${c.phraseBars}   BEAT ${beat}`, 14, 22);
+      if (plan) g2.fillText(`${plan.section.toUpperCase()}   tension ${tension.toFixed(2)}`, 14, 42);
+      g2.fillStyle = 'rgba(255,255,255,.15)'; g2.fillRect(14, h - 22, w - 28, 6);
+      g2.fillStyle = `hsl(${hue} 90% 60%)`; g2.fillRect(14, h - 22, (w - 28) * tension, 6);
+
+      if (banner && ctx.currentTime - banner.at < 2.2) {
+        const a = Math.min(1, 2.2 - (ctx.currentTime - banner.at));
+        g2.fillStyle = `rgba(255,255,255,${0.9 * a})`;
+        g2.font = '700 15px ui-monospace, Menlo, Consolas, monospace';
+        g2.fillText(banner.text, cx - g2.measureText(banner.text).width / 2, 70);
+      }
+      if (lastTap && performance.now() - lastTap.time < 400) {
+        g2.fillStyle = lastTap.hit ? '#5be49b' : '#ff5c7a';
+        g2.font = '700 22px ui-sans-serif, system-ui';
+        const txt = `${lastTap.hit ? 'HIT' : 'MISS'} ${lastTap.offsetMs > 0 ? '+' : ''}${lastTap.offsetMs} ms`;
+        g2.fillText(txt, cx - g2.measureText(txt).width / 2, cy + pulse + 34);
+      }
+    }
+  } else {
+    g2.fillStyle = 'rgba(255,255,255,.6)';
+    g2.font = '14px ui-sans-serif, system-ui';
+    g2.fillText('Load stems and press Start.', 14, 24);
+  }
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

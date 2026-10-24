@@ -1,0 +1,557 @@
+{
+  "config": {
+    "url": "http://localhost:11434",
+    "model": "llama3.2:3b",
+    "bpm": 128,
+    "loopBars": 8,
+    "phraseBars": 8,
+    "extraLatencyMs": 0
+  },
+  "stems": [
+    "kick",
+    "hats",
+    "bass",
+    "pad",
+    "arp"
+  ],
+  "entries": [
+    {
+      "plan_for_phrase": 3,
+      "based_on_phrase": 1,
+      "telemetry": {
+        "beats": 32,
+        "hits": 20,
+        "hit_rate": 0.63,
+        "mean_offset_ms": -17,
+        "jitter_ms": 39,
+        "extra_taps": 6,
+        "enemies_destroyed": 0,
+        "enemies_carried_over": 0
+      },
+      "player_state": "steady",
+      "strong_streak": 0,
+      "status": "on_time",
+      "latency_ms": 5696,
+      "model_plan": {
+        "assessment": "The player is maintaining a steady pace with a decent playing style.",
+        "stem_gains": [
+          0.5,
+          0.7,
+          0.6,
+          0.8,
+          0.9
+        ],
+        "filter_cutoff_hz": 500,
+        "tension": 0.5,
+        "enemy_density": 20,
+        "hue": 240,
+        "section": "build",
+        "reason": "Increased tension to match the steady playing style, while maintaining a moderate level of intensity. Adjusted filter cutoff to a medium value to maintain a balanced sound."
+      },
+      "guardrails": [
+        "filter_cutoff_hz 500→2000"
+      ],
+      "plan": {
+        "assessment": "The player is maintaining a steady pace with a decent playing style.",
+        "stem_gains": [
+          0.5,
+          0.7,
+          0.6,
+          0.8,
+          0.9
+        ],
+        "filter_cutoff_hz": 2000,
+        "tension": 0.5,
+        "enemy_density": 20,
+        "hue": 240,
+        "section": "build",
+        "reason": "Increased tension to match the steady playing style, while maintaining a moderate level of intensity. Adjusted filter cutoff to a medium value to maintain a balanced sound."
+      }
+    },
+    {
+      "plan_for_phrase": 4,
+      "based_on_phrase": 2,
+      "telemetry": {
+        "beats": 32,
+        "hits": 27,
+        "hit_rate": 0.84,
+        "mean_offset_ms": -32,
+        "jitter_ms": 19,
+        "extra_taps": 4,
+        "enemies_destroyed": 2,
+        "enemies_carried_over": 0
+      },
+      "player_state": "steady",
+      "strong_streak": 0,
+      "status": "on_time",
+      "latency_ms": 5269,
+      "model_plan": {
+        "assessment": "The player is maintaining a steady pace with a decent hit rate.",
+        "stem_gains": [
+          0,
+          0.5,
+          0.25,
+          0.75,
+          0.5
+        ],
+        "filter_cutoff_hz": 750,
+        "tension": 0,
+        "enemy_density": 10,
+        "hue": 220,
+        "section": "breakdown",
+        "reason": "Switching to a calm breakdown section to reflect the player's steady state, with a moderate enemy density to maintain pressure without overwhelming the player."
+      },
+      "guardrails": [
+        "section breakdown→build",
+        "tension 0→0.3",
+        "filter_cutoff_hz 750→2000"
+      ],
+      "plan": {
+        "assessment": "The player is maintaining a steady pace with a decent hit rate.",
+        "stem_gains": [
+          0,
+          0.5,
+          0.25,
+          0.75,
+          0.5
+        ],
+        "filter_cutoff_hz": 2000,
+        "tension": 0.3,
+        "enemy_density": 10,
+        "hue": 220,
+        "section": "build",
+        "reason": "Switching to a calm breakdown section to reflect the player's steady state, with a moderate enemy density to maintain pressure without overwhelming the player."
+      }
+    },
+    {
+      "plan_for_phrase": 5,
+      "based_on_phrase": 3,
+      "telemetry": {
+        "beats": 32,
+        "hits": 32,
+        "hit_rate": 1,
+        "mean_offset_ms": -10,
+        "jitter_ms": 26,
+        "extra_taps": 0,
+        "enemies_destroyed": 20,
+        "enemies_carried_over": 0
+      },
+      "player_state": "strong",
+      "strong_streak": 1,
+      "status": "on_time",
+      "latency_ms": 5291,
+      "model_plan": {
+        "assessment": "The player is performing strongly with a single strong streak.",
+        "stem_gains": [
+          0.8,
+          0.7,
+          0.9,
+          0.6,
+          0.5
+        ],
+        "filter_cutoff_hz": 8000,
+        "tension": 0.6,
+        "enemy_density": 25,
+        "hue": 240,
+        "section": "build",
+        "reason": "Increased tension and density to match the player's strong performance, while maintaining a bright filter to emphasize the strong streak."
+      },
+      "guardrails": [],
+      "plan": {
+        "assessment": "The player is performing strongly with a single strong streak.",
+        "stem_gains": [
+          0.8,
+          0.7,
+          0.9,
+          0.6,
+          0.5
+        ],
+        "filter_cutoff_hz": 8000,
+        "tension": 0.6,
+        "enemy_density": 25,
+        "hue": 240,
+        "section": "build",
+        "reason": "Increased tension and density to match the player's strong performance, while maintaining a bright filter to emphasize the strong streak."
+      }
+    },
+    {
+      "plan_for_phrase": 6,
+      "based_on_phrase": 4,
+      "telemetry": {
+        "beats": 32,
+        "hits": 26,
+        "hit_rate": 0.81,
+        "mean_offset_ms": 37,
+        "jitter_ms": 24,
+        "extra_taps": 6,
+        "enemies_destroyed": 10,
+        "enemies_carried_over": 2
+      },
+      "player_state": "steady",
+      "strong_streak": 0,
+      "status": "on_time",
+      "latency_ms": 5957,
+      "model_plan": {
+        "assessment": "The player is maintaining a steady pace with a decent hit rate.",
+        "stem_gains": [
+          0.1,
+          0.2,
+          0.3,
+          0.4,
+          0.5
+        ],
+        "filter_cutoff_hz": 2000,
+        "tension": 0.5,
+        "enemy_density": 25,
+        "hue": 240,
+        "section": "build",
+        "reason": "Maintaining a steady pace, I've kept the tension moderate and the filter cutoff at 2000 Hz to maintain a sense of momentum, while increasing the enemy density to reflect the player's consistent performance."
+      },
+      "guardrails": [
+        "enemy_density 25→24"
+      ],
+      "plan": {
+        "assessment": "The player is maintaining a steady pace with a decent hit rate.",
+        "stem_gains": [
+          0.1,
+          0.2,
+          0.3,
+          0.4,
+          0.5
+        ],
+        "filter_cutoff_hz": 2000,
+        "tension": 0.5,
+        "enemy_density": 24,
+        "hue": 240,
+        "section": "build",
+        "reason": "Maintaining a steady pace, I've kept the tension moderate and the filter cutoff at 2000 Hz to maintain a sense of momentum, while increasing the enemy density to reflect the player's consistent performance."
+      }
+    },
+    {
+      "plan_for_phrase": 7,
+      "based_on_phrase": 5,
+      "telemetry": {
+        "beats": 32,
+        "hits": 30,
+        "hit_rate": 0.94,
+        "mean_offset_ms": 36,
+        "jitter_ms": 18,
+        "extra_taps": 2,
+        "enemies_destroyed": 24,
+        "enemies_carried_over": 2
+      },
+      "player_state": "strong",
+      "strong_streak": 1,
+      "status": "on_time",
+      "latency_ms": 5685,
+      "model_plan": {
+        "assessment": "The player is playing strongly with a 0.94 hit rate.",
+        "stem_gains": [
+          0.9,
+          0.8,
+          0.7,
+          0.6,
+          0.5
+        ],
+        "filter_cutoff_hz": 1500,
+        "tension": 0.6,
+        "enemy_density": 30,
+        "hue": 240,
+        "section": "build",
+        "reason": "Increased tension to match the player's strong performance, and adjusted filter cutoff to a moderate value to maintain a sense of intensity without overwhelming the player."
+      },
+      "guardrails": [
+        "filter_cutoff_hz 1500→6000"
+      ],
+      "plan": {
+        "assessment": "The player is playing strongly with a 0.94 hit rate.",
+        "stem_gains": [
+          0.9,
+          0.8,
+          0.7,
+          0.6,
+          0.5
+        ],
+        "filter_cutoff_hz": 6000,
+        "tension": 0.6,
+        "enemy_density": 30,
+        "hue": 240,
+        "section": "build",
+        "reason": "Increased tension to match the player's strong performance, and adjusted filter cutoff to a moderate value to maintain a sense of intensity without overwhelming the player."
+      }
+    },
+    {
+      "plan_for_phrase": 8,
+      "based_on_phrase": 6,
+      "telemetry": {
+        "beats": 32,
+        "hits": 22,
+        "hit_rate": 0.69,
+        "mean_offset_ms": 28,
+        "jitter_ms": 18,
+        "extra_taps": 3,
+        "enemies_destroyed": 18,
+        "enemies_carried_over": 8
+      },
+      "player_state": "steady",
+      "strong_streak": 0,
+      "status": "on_time",
+      "latency_ms": 5414,
+      "model_plan": {
+        "assessment": "The player is maintaining a decent playing pace with a moderate hit rate.",
+        "stem_gains": [
+          0.2,
+          0.1,
+          0.3,
+          0.1,
+          0.2
+        ],
+        "filter_cutoff_hz": 500,
+        "tension": 0,
+        "enemy_density": 10,
+        "hue": 270,
+        "section": "breakdown",
+        "reason": "Transitioning to a calm breakdown section with a focus on quiet layers to match the player's steady state, while keeping a moderate enemy density to maintain pressure."
+      },
+      "guardrails": [
+        "section breakdown→build",
+        "tension 0→0.3",
+        "filter_cutoff_hz 500→2000"
+      ],
+      "plan": {
+        "assessment": "The player is maintaining a decent playing pace with a moderate hit rate.",
+        "stem_gains": [
+          0.2,
+          0.1,
+          0.3,
+          0.1,
+          0.2
+        ],
+        "filter_cutoff_hz": 2000,
+        "tension": 0.3,
+        "enemy_density": 10,
+        "hue": 270,
+        "section": "build",
+        "reason": "Transitioning to a calm breakdown section with a focus on quiet layers to match the player's steady state, while keeping a moderate enemy density to maintain pressure."
+      }
+    },
+    {
+      "plan_for_phrase": 9,
+      "based_on_phrase": 7,
+      "telemetry": {
+        "beats": 32,
+        "hits": 27,
+        "hit_rate": 0.84,
+        "mean_offset_ms": 45,
+        "jitter_ms": 12,
+        "extra_taps": 4,
+        "enemies_destroyed": 25,
+        "enemies_carried_over": 5
+      },
+      "player_state": "steady",
+      "strong_streak": 0,
+      "status": "on_time",
+      "latency_ms": 5328,
+      "model_plan": {
+        "assessment": "The player is maintaining a steady pace with a moderate hit rate.",
+        "stem_gains": [
+          0.5,
+          0.6,
+          0.7,
+          0.4,
+          0.3
+        ],
+        "filter_cutoff_hz": 1500,
+        "tension": 0.5,
+        "enemy_density": 30,
+        "hue": 240,
+        "section": "build",
+        "reason": "Maintaining the build section with a moderate tension to keep the momentum, while adjusting the filter cutoff to a darker setting to reflect the steady pace."
+      },
+      "guardrails": [
+        "enemy_density 30→24",
+        "filter_cutoff_hz 1500→2000"
+      ],
+      "plan": {
+        "assessment": "The player is maintaining a steady pace with a moderate hit rate.",
+        "stem_gains": [
+          0.5,
+          0.6,
+          0.7,
+          0.4,
+          0.3
+        ],
+        "filter_cutoff_hz": 2000,
+        "tension": 0.5,
+        "enemy_density": 24,
+        "hue": 240,
+        "section": "build",
+        "reason": "Maintaining the build section with a moderate tension to keep the momentum, while adjusting the filter cutoff to a darker setting to reflect the steady pace."
+      }
+    },
+    {
+      "plan_for_phrase": 10,
+      "based_on_phrase": 8,
+      "telemetry": {
+        "beats": 32,
+        "hits": 5,
+        "hit_rate": 0.16,
+        "mean_offset_ms": 32,
+        "jitter_ms": 30,
+        "extra_taps": 1,
+        "enemies_destroyed": 2,
+        "enemies_carried_over": 11
+      },
+      "player_state": "struggling",
+      "strong_streak": 0,
+      "status": "on_time",
+      "latency_ms": 4896,
+      "model_plan": {
+        "assessment": "The player is struggling to keep the beat.",
+        "stem_gains": [
+          0,
+          0.5,
+          0.2,
+          0.1,
+          0.3
+        ],
+        "filter_cutoff_hz": 750,
+        "tension": 0,
+        "enemy_density": 20,
+        "hue": 270,
+        "section": "breakdown",
+        "reason": "To help the player, reduce tension and density while maintaining a steady filter cutoff to create a calming atmosphere."
+      },
+      "guardrails": [
+        "tension 0→0.1",
+        "enemy_density 20→12",
+        "filter_cutoff_hz 750→800",
+        "kick 0.00→0.85"
+      ],
+      "plan": {
+        "assessment": "The player is struggling to keep the beat.",
+        "stem_gains": [
+          0.85,
+          0.5,
+          0.2,
+          0.1,
+          0.3
+        ],
+        "filter_cutoff_hz": 800,
+        "tension": 0.1,
+        "enemy_density": 12,
+        "hue": 270,
+        "section": "breakdown",
+        "reason": "To help the player, reduce tension and density while maintaining a steady filter cutoff to create a calming atmosphere."
+      }
+    },
+    {
+      "plan_for_phrase": 11,
+      "based_on_phrase": 9,
+      "telemetry": {
+        "beats": 32,
+        "hits": 30,
+        "hit_rate": 0.94,
+        "mean_offset_ms": 37,
+        "jitter_ms": 21,
+        "extra_taps": 2,
+        "enemies_destroyed": 24,
+        "enemies_carried_over": 1
+      },
+      "player_state": "strong",
+      "strong_streak": 1,
+      "status": "on_time",
+      "latency_ms": 5631,
+      "model_plan": {
+        "assessment": "The player is maintaining a strong performance with a hit rate of 0.94.",
+        "stem_gains": [
+          0.7,
+          0.8,
+          0.6,
+          0.5,
+          0.4
+        ],
+        "filter_cutoff_hz": 8000,
+        "tension": 0.5,
+        "enemy_density": 25,
+        "hue": 240,
+        "section": "build",
+        "reason": "Increased tension and density to maintain momentum, with a moderate filter cutoff to maintain brightness, and adjusted stem gains to prioritize the kick and hats."
+      },
+      "guardrails": [
+        "tension 0.5→0.6"
+      ],
+      "plan": {
+        "assessment": "The player is maintaining a strong performance with a hit rate of 0.94.",
+        "stem_gains": [
+          0.7,
+          0.8,
+          0.6,
+          0.5,
+          0.4
+        ],
+        "filter_cutoff_hz": 8000,
+        "tension": 0.6,
+        "enemy_density": 25,
+        "hue": 240,
+        "section": "build",
+        "reason": "Increased tension and density to maintain momentum, with a moderate filter cutoff to maintain brightness, and adjusted stem gains to prioritize the kick and hats."
+      }
+    },
+    {
+      "plan_for_phrase": 12,
+      "based_on_phrase": 10,
+      "telemetry": {
+        "beats": 32,
+        "hits": 20,
+        "hit_rate": 0.63,
+        "mean_offset_ms": 54,
+        "jitter_ms": 9,
+        "extra_taps": 12,
+        "enemies_destroyed": 9,
+        "enemies_carried_over": 6
+      },
+      "player_state": "steady",
+      "strong_streak": 0,
+      "status": "on_time",
+      "latency_ms": 5870,
+      "model_plan": {
+        "assessment": "The player is maintaining a steady pace with a moderate hit rate.",
+        "stem_gains": [
+          0,
+          0,
+          0,
+          0.2,
+          0.1
+        ],
+        "filter_cutoff_hz": 500,
+        "tension": 0,
+        "enemy_density": 10,
+        "hue": 240,
+        "section": "breakdown",
+        "reason": "Since the player's state is steady, I've shifted to a calm breakdown section with a low filter cutoff to create a sense of relaxation. I've also reduced the enemy density to reflect the player's steady performance."
+      },
+      "guardrails": [
+        "section breakdown→build",
+        "tension 0→0.3",
+        "filter_cutoff_hz 500→2000"
+      ],
+      "plan": {
+        "assessment": "The player is maintaining a steady pace with a moderate hit rate.",
+        "stem_gains": [
+          0,
+          0,
+          0,
+          0.2,
+          0.1
+        ],
+        "filter_cutoff_hz": 2000,
+        "tension": 0.3,
+        "enemy_density": 10,
+        "hue": 240,
+        "section": "build",
+        "reason": "Since the player's state is steady, I've shifted to a calm breakdown section with a low filter cutoff to create a sense of relaxation. I've also reduced the enemy density to reflect the player's steady performance."
+      }
+    }
+  ]
+}
